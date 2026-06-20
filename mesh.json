@@ -1,0 +1,54 @@
+{
+  "meshConfig": {
+    "responseConfig": {
+      "CORS": {
+        "maxAge": 60480,
+        "methods": [
+          "GET",
+          "POST",
+          "PUT",
+          "HEAD",
+          "OPTIONS"
+        ],
+        "origin": ["http://localhost:3000", "https://main--accs-cohort--kailashlambe21.aem.page", "https://main--accs-cohort--kailashlambe21.aem.live"]
+      }
+    },
+    "sources": [
+      {
+        "name": "Commerce",
+        "handler": {
+          "graphql": {
+            "endpoint": "https://na1-sandbox.api.commerce.adobe.com/LeSfkFE1w6txZnLYWBxcrr/graphql",
+            "operationHeaders": {
+              "Content-Type": "application/json",
+              "Magento-Environment-Id": "LeSfkFE1w6txZnLYWBxcrr",
+              "Magento-Website-Code": "base",
+              "Magento-Store-Code": "main_website_store",
+              "Magento-Store-View-Code": "default",
+              "Magento-Customer-Group": "b6589fc6ab0dc82cf12099d1c2d40ab994e8410c"
+            },
+            "schemaHeaders": {
+              "Magento-Environment-Id": "LeSfkFE1w6txZnLYWBxcrr"
+            }
+          }
+        }
+      },
+      {
+        "name": "Enrichment",
+        "handler": {
+          "openapi": {
+            "source": "./enrichment-openapi.json"
+          }
+        },
+        "transforms": [
+          {
+            "prefix": {
+              "value": "Enrichment_",
+              "includeRootOperations": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

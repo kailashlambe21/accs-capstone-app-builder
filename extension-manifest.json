@@ -1,0 +1,8 @@
+{
+  "name": "badge_management",
+  "displayName": "Badge Management",
+  "description": "PDP Badge Management — rules-based badge assignment for Adobe Commerce products.",
+  "platform": "web",
+  "id": "badge_management",
+  "version": "1.0.0"
+}

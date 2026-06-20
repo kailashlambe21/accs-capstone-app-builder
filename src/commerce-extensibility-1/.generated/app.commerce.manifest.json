@@ -1,0 +1,51 @@
+{
+  "adminUiSdk": {
+    "registration": {
+      "menuItems": [
+        {
+          "id": "badge_management::apps",
+          "isSection": true,
+          "sortOrder": 100,
+          "title": "Badge Management"
+        },
+        {
+          "id": "badge_management::main",
+          "parent": "badge_management::apps",
+          "sortOrder": 1,
+          "title": "Badge Management"
+        }
+      ]
+    }
+  },
+  "eventing": {
+    "commerce": [
+      {
+        "events": [
+          {
+            "description": "Triggered when a product is saved in Commerce - re-evaluates badges for that SKU.",
+            "fields": [
+              {
+                "name": "sku"
+              }
+            ],
+            "label": "Product Saved",
+            "name": "observer.catalog_product_save_after",
+            "runtimeActions": [
+              "badge-management/product-event-consumer"
+            ]
+          }
+        ],
+        "provider": {
+          "description": "Events from Adobe Commerce for badge evaluation.",
+          "label": "Commerce Events"
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "description": "PDP Badge Management — rules-based badge assignment for Adobe Commerce products.",
+    "displayName": "Kailash ACCS Capstone App",
+    "id": "kailash-accs-capstone-app",
+    "version": "1.0.0"
+  }
+}
