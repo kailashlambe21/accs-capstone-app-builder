@@ -10,7 +10,7 @@
           "HEAD",
           "OPTIONS"
         ],
-        "origin": ["http://localhost:3000", "https://main--accs-cohort--kailashlambe21.aem.page", "https://main--accs-cohort--kailashlambe21.aem.live"]
+        "origin": ["http://localhost:3000", "https://main--accs-cohort--kailashlambe21.aem.page", "https://main--accs-cohort--kailashlambe21.aem.live", "https://main--accs-capstone-eds--kailashlambe21.aem.page", "https://main--accs-capstone-eds--kailashlambe21.aem.live"]
       }
     },
     "sources": [
@@ -32,23 +32,9 @@
             }
           }
         }
-      },
-      {
-        "name": "Enrichment",
-        "handler": {
-          "openapi": {
-            "source": "./enrichment-openapi.json"
-          }
-        },
-        "transforms": [
-          {
-            "prefix": {
-              "value": "Enrichment_",
-              "includeRootOperations": true
-            }
-          }
-        ]
       }
-    ]
+    ],
+    "additionalTypeDefs": "extend type SimpleProductView { badges: [String] } extend type ComplexProductView { badges: [String] }",
+    "additionalResolvers": ["./resolvers.js"]
   }
 }
