@@ -20,7 +20,9 @@ import {
 
 const RUNTIME_BASE = 'https://3967933-389wheatplanarian-capstone.adobeioruntime.net/api/v1/web/badge-management';
 const URLS = {
-  getBadgeProducts: `${RUNTIME_BASE}/get-badge-products`,
+  getBadgeProducts:  `${RUNTIME_BASE}/get-badge-products`,
+  getRules:          `${RUNTIME_BASE}/get-badge-rules`,
+  assignManualBadge: `${RUNTIME_BASE}/assign-manual-badge`,
 };
 
 async function getImsToken (ims) {
@@ -30,10 +32,13 @@ async function getImsToken (ims) {
   return ims.token;
 }
 
-async function apiFetch (url, token) {
-  const res = await fetch(url, {
+async function apiFetch (url, token, method = 'GET', body = null) {
+  const opts = {
+    method,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
@@ -159,10 +164,29 @@ function ByBadgeView ({ ims }) {
 // ─── By SKU view ──────────────────────────────────────────────────────────────
 
 function BySkuView ({ ims }) {
-  const [skuInput, setSkuInput] = useState('');
-  const [result, setResult] = useState(null);   // { sku, badges, evaluatedAt, evaluatedBy }
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [skuInput, setSkuInput]   = useState('');
+  const [result, setResult]       = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
+  const [notice, setNotice]       = useState(null);
+  const [manualRules, setManualRules] = useState([]);
+  const [assigning, setAssigning] = useState(null); // label being toggled
+
+  const showNotice = (type, msg) => {
+    setNotice({ type, msg });
+    setTimeout(() => setNotice(null), 4000);
+  };
+
+  // Load active manual rules once for the assign panel
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getImsToken(ims);
+        const data = await apiFetch(URLS.getRules, token);
+        setManualRules((data.rules || []).filter((r) => r.conditionType === 'manual' && r.active));
+      } catch { /* non-critical */ }
+    })();
+  }, [ims]);
 
   async function search () {
     const sku = skuInput.trim();
@@ -172,10 +196,12 @@ function BySkuView ({ ims }) {
     setResult(null);
     try {
       const token = await getImsToken(ims);
-      const url = `${URLS.getBadgeProducts}?sku=${encodeURIComponent(sku)}`;
-      const data = await apiFetch(url, token);
+      const data = await apiFetch(`${URLS.getBadgeProducts}?sku=${encodeURIComponent(sku)}`, token);
       const doc = (data.assignments || [])[0] || null;
-      setResult(doc ? { sku: doc._id, badges: doc.badges || [], evaluatedAt: doc.evaluatedAt, evaluatedBy: doc.evaluatedBy } : { sku, badges: [] });
+      setResult(doc
+        ? { sku: doc._id, badges: doc.badges || [], evaluatedAt: doc.evaluatedAt, evaluatedBy: doc.evaluatedBy }
+        : { sku, badges: [] },
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -183,8 +209,19 @@ function BySkuView ({ ims }) {
     }
   }
 
-  function handleKeyDown (e) {
-    if (e.key === 'Enter') search();
+  async function toggleManualBadge (label, currentlyAssigned) {
+    setAssigning(label);
+    try {
+      const token = await getImsToken(ims);
+      const action = currentlyAssigned ? 'remove' : 'add';
+      const data = await apiFetch(URLS.assignManualBadge, token, 'POST', { sku: result.sku, label, action });
+      setResult((r) => ({ ...r, badges: data.badges }));
+      showNotice('positive', `"${label}" ${action === 'add' ? 'assigned to' : 'removed from'} ${result.sku}.`);
+    } catch (err) {
+      showNotice('negative', `Failed: ${err.message}`);
+    } finally {
+      setAssigning(null);
+    }
   }
 
   return (
@@ -192,10 +229,10 @@ function BySkuView ({ ims }) {
       <Flex gap="size-150" alignItems="end" marginBottom="size-300">
         <TextField
           label="Search by SKU"
-          placeholder="e.g. SKU-001"
+          placeholder="e.g. AGV-3939"
           value={skuInput}
           onChange={setSkuInput}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => { if (e.key === 'Enter') search(); }}
           width="size-4600"
         />
         <Button variant="primary" onPress={search} isDisabled={loading || !skuInput.trim()}>
@@ -203,46 +240,74 @@ function BySkuView ({ ims }) {
         </Button>
       </Flex>
 
-      {error && <Well><Text>Error: {error}</Text></Well>}
+      {error && <Well marginBottom="size-200"><Text>Error: {error}</Text></Well>}
+
+      {notice && (
+        <Well
+          marginBottom="size-200"
+          UNSAFE_style={{ background: notice.type === 'positive' ? '#f0fdf4' : '#fff1f2' }}
+        >
+          <Text>{notice.msg}</Text>
+        </Well>
+      )}
 
       {result && (
-        <View
-          borderWidth="thin"
-          borderColor="dark"
-          borderRadius="medium"
-          padding="size-300"
-        >
-          <Heading level={3} margin="size-0" marginBottom="size-100">
-            {result.sku}
-          </Heading>
+        <View borderWidth="thin" borderColor="dark" borderRadius="medium" padding="size-300">
+          <Heading level={3} margin="size-0" marginBottom="size-100">{result.sku}</Heading>
 
+          <Text UNSAFE_style={{ fontWeight: '600', display: 'block', marginBottom: '6px' }}>
+            Active badges:
+          </Text>
           {result.badges.length === 0 ? (
-            <Text UNSAFE_style={{ color: '#6b7280' }}>No badges assigned to this SKU.</Text>
+            <Text UNSAFE_style={{ color: '#6b7280', display: 'block', marginBottom: '12px' }}>
+              No badges assigned.
+            </Text>
           ) : (
+            <Flex wrap gap="size-100" marginBottom="size-200">
+              {result.badges.map((badge) => (
+                <View
+                  key={badge}
+                  backgroundColor="blue-400"
+                  borderRadius="small"
+                  paddingX="size-200"
+                  paddingY="size-75"
+                >
+                  <Text UNSAFE_style={{ color: '#fff', fontWeight: '600', fontSize: '0.875rem' }}>
+                    {badge}
+                  </Text>
+                </View>
+              ))}
+            </Flex>
+          )}
+
+          {manualRules.length > 0 && (
             <>
+              <Divider size="S" marginBottom="size-150" />
               <Text UNSAFE_style={{ fontWeight: '600', display: 'block', marginBottom: '8px' }}>
-                Active badges:
+                Manual badge assignment:
               </Text>
-              <Flex wrap gap="size-100" marginBottom="size-200">
-                {result.badges.map((badge) => (
-                  <View
-                    key={badge}
-                    backgroundColor="blue-400"
-                    borderRadius="small"
-                    paddingX="size-200"
-                    paddingY="size-75"
-                  >
-                    <Text UNSAFE_style={{ color: '#fff', fontWeight: '600', fontSize: '0.875rem' }}>
-                      {badge}
-                    </Text>
-                  </View>
-                ))}
+              <Flex wrap gap="size-100">
+                {manualRules.map((rule) => {
+                  const assigned = result.badges.includes(rule.label);
+                  return (
+                    <Button
+                      key={rule._id}
+                      variant={assigned ? 'negative' : 'primary'}
+                      isDisabled={assigning === rule.label}
+                      onPress={() => toggleManualBadge(rule.label, assigned)}
+                    >
+                      {assigning === rule.label
+                        ? (assigned ? 'Removing…' : 'Assigning…')
+                        : (assigned ? `Remove "${rule.label}"` : `+ Assign "${rule.label}"`)}
+                    </Button>
+                  );
+                })}
               </Flex>
             </>
           )}
 
           {result.evaluatedAt && (
-            <Text UNSAFE_style={{ color: '#9ca3af', fontSize: '0.75rem' }}>
+            <Text UNSAFE_style={{ color: '#9ca3af', fontSize: '0.75rem', display: 'block', marginTop: '12px' }}>
               Last evaluated: {new Date(result.evaluatedAt).toLocaleString()}
               {result.evaluatedBy ? ` · ${result.evaluatedBy}` : ''}
             </Text>

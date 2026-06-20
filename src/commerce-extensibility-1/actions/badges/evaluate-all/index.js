@@ -64,7 +64,8 @@ async function main (params) {
 
     const allRules = await rulesCollection.find({}).toArray();
     const activeRules = allRules.filter((r) => r.active);
-    logger.info(`Loaded ${activeRules.length} active rules`);
+    const manualBadgeLabels = new Set(activeRules.filter((r) => r.conditionType === 'manual').map((r) => r.label));
+    logger.info(`Loaded ${activeRules.length} active rules (${manualBadgeLabels.size} manual)`);
 
     const products = await fetchAllProducts(accessToken, params, logger);
 
@@ -78,7 +79,9 @@ async function main (params) {
       const existingDocs = await assignmentsCollection.find({ _id: sku }).toArray();
       const badgesBefore = existingDocs.length > 0 ? (existingDocs[0].badges || []) : [];
 
-      const badgesAfter = evaluateRules(activeRules, product);
+      const autoBadges = evaluateRules(activeRules, product);
+      const preservedManual = badgesBefore.filter((b) => manualBadgeLabels.has(b));
+      const badgesAfter = [...new Set([...autoBadges, ...preservedManual])];
       const evaluatedAt = await upsertAssignment(assignmentsCollection, sku, badgesAfter, trigger);
 
       const badgesChanged =

@@ -39,13 +39,16 @@ async function main (params) {
 
     const allRules = await rulesCollection.find({}).toArray();
     const activeRules = allRules.filter((r) => r.active);
+    const manualBadgeLabels = new Set(activeRules.filter((r) => r.conditionType === 'manual').map((r) => r.label));
 
     const product = await fetchProduct(sku.trim(), accessToken, params);
 
     const existingDocs = await assignmentsCollection.find({ _id: sku }).toArray();
     const badgesBefore = existingDocs.length > 0 ? (existingDocs[0].badges || []) : [];
 
-    const badgesAfter = evaluateRules(activeRules, product);
+    const autoBadges = evaluateRules(activeRules, product);
+    const preservedManual = badgesBefore.filter((b) => manualBadgeLabels.has(b));
+    const badgesAfter = [...new Set([...autoBadges, ...preservedManual])];
     const evaluatedAt = new Date().toISOString();
 
     if (existingDocs.length > 0) {
