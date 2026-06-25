@@ -44,6 +44,21 @@ jobs:
           echo "COMMERCE_API_BASE_URL=$COMMERCE_API_BASE_URL" >> .env
           echo "COMMERCE_STORE_CODE=$COMMERCE_STORE_CODE" >> .env
 
+      - name: Configure AIO CLI for CI
+        env:
+          IMS_CLIENT_ID: ${{ secrets.IMS_OAUTH_S2S_CLIENT_ID }}
+          IMS_CLIENT_SECRET: ${{ secrets.IMS_OAUTH_S2S_CLIENT_SECRET }}
+          IMS_ORG_ID: ${{ secrets.IMS_OAUTH_S2S_ORG_ID }}
+          IMS_SCOPES: ${{ secrets.IMS_OAUTH_S2S_SCOPES }}
+        run: |
+          CONTEXT="oauth_s2s_3967933-389wheatplanarian-capstone"
+          aio config set "ims.contexts.${CONTEXT}.client_id" "$IMS_CLIENT_ID"
+          aio config set "ims.contexts.${CONTEXT}.client_secrets" "[\"$IMS_CLIENT_SECRET\"]" --json
+          aio config set "ims.contexts.${CONTEXT}.ims_org_id" "$IMS_ORG_ID"
+          aio config set "ims.contexts.${CONTEXT}.scopes" "$IMS_SCOPES" --json
+          aio config set "ims.contexts.${CONTEXT}.technical_account_id" "dummy@techacct.adobe.com"
+          aio config set "ims.contexts.${CONTEXT}.technical_account_email" "dummy@techacct.adobe.com"
+
       - name: Deploy
         run: aio app deploy
 
